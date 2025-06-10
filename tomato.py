@@ -195,7 +195,11 @@ def main(args: argparse.Namespace):
         exit(1)
 
     # pop: dict[str, int] = get_population(data["population"])
-    pop: dict[str, int] = get_population_j(data["population"])
+    pop: dict[str, int] = {}
+    if args.population_mode == "japanese":
+        pop = get_population_j(data["population"])
+    if args.population_mode == "total":
+        pop = get_population(data["population"])
     con: dict[str, float] = get_consumption(data["consumption"], "トマト")
     pro: dict[str, float] = get_production(data["production"])
     dis: dict[tuple[str, str], float] = get_distance(data["distance"])
@@ -265,6 +269,9 @@ def main(args: argparse.Namespace):
 if __name__ == "__main__":
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument("--population", help="Dataset of population")
+    parser.add_argument(
+            "--population-mode", default="japanese",
+            choices=["japanese", "total"], help="Population dataset type")
     parser.add_argument("--consumption", help="Dataset of consumption")
     parser.add_argument("--production", help="Dataset of production")
     parser.add_argument(
