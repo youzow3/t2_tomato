@@ -66,9 +66,9 @@ def load_data(args: argparse.Namespace = None) -> dict[str, pd.DataFrame]:
 
         return {
                 "population": pd.read_excel(args.population),
-                "consumption": pd.read_excel(args.consumption),
+                "consumption": pd.read_excel(args.consumption, 1),
                 "production": pd.read_excel(args.production),
-                "distance": pd.read_excel(args.distance)
+                "distance": pd.read_csv(args.distance)
                 }
     return {
             "population": pd.read_excel("24ntjin.xlsx"),
@@ -189,7 +189,7 @@ def main(args: argparse.Namespace):
     data: dict[str, pd.DataFrame] = {}
 
     try:
-        data = load_data()
+        data = load_data(args)
     except Exception as e:
         print(e)
         exit(1)
