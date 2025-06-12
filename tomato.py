@@ -154,6 +154,32 @@ def get_production(data: pd.DataFrame) -> dict[str, float]:
     return production
 
 
+def get_unit_cost(data: pd.DataFrame, name: str) -> dict[str, float]:
+    unit_cost: dict[str, int] = {}
+    name_idx: int = None
+    for i in range(data.shape[0]):
+        if data.iat[i, 11] == name:
+            name_idx = i
+    if name_idx is None:
+        print("Error at get consumption")
+        exit(1)
+
+    for pref, city in PREF_CITY:
+        if pref == "東京都":
+            city = "東京都区部"
+        tgt: str = f"{city}・平均価格"
+        for i in range(14, data.shape[1]):
+            label: str = str(data.iat[7, i])
+            label = label[label.find(' ') + 1:]
+            # if str(data.iat[7, i]).endswith(tgt):
+            if label == tgt:
+                try:
+                    unit_cost[pref] = float(data.iat[name_idx, i])
+                except ValueError:
+                    unit_cost[pref] = 0.0
+    return unit_cost
+
+
 def get_distance(data: pd.DataFrame) -> dict[tuple[str, str], float]:
     distance: dict[tuple[str, str], float] = {}
 
@@ -176,13 +202,110 @@ def get_distance(data: pd.DataFrame) -> dict[tuple[str, str], float]:
     return distance
 
 
+def get_transportation_cost_s(data: pd.DataFrame) -> dict[float, float]:
+    raise NotImplementedError()
+
+
+def get_transportation_cost_m(
+        data: pd.DataFrame) -> dict[float, dict[float, float]]:
+    cost: dict[float, dict[float, float]] = {}
+    for i, l in enumerate(data.columns[1:]):
+        lf: float = float(l)
+        cost[lf] = {}
+        ccost: dict[float, float] = {}
+        for k in range(data.shape[0]):
+            dist: float = float(data.iat[k, 0])
+            c: float = float(data.iat[k, i + 1])
+            ccost[dist] = c
+        cost[lf] = ccost
+    return cost
+
+
+def get_transportation_cost(
+        data: pd.DataFrame, simple=False
+        ) -> dict[float, float] | dict[float, dict[float, float]]:
+    if len(data.columns) == 2:
+        return get_transportation_cost_s(data)
+    if len(data.columns) > 2:
+        d: dict[float, dict[float, float]] = get_transportation_cost_m(data)
+        if not simple:
+            return d
+
+        d_s: dict[float, float] = {}
+        for k in d.keys():
+            s: float = 0
+            for kk in d[k].keys():
+                s += d[k][kk] / k
+            d_s[k] = s / len(d.keys())
+        return d_s
+    raise NotImplementedError()
+
+
 def calculate_consumption(
         consumption: dict[str, int], population: dict[str, int], unit: float
-        ) -> dict[str, int]:
-    cp: dict[str, int] = {}
+        ) -> dict[str, float]:
+    cp: dict[str, float] = {}
     for k in consumption.keys():
         cp[k] = consumption[k] * population[k] / float(unit)
     return cp
+
+
+def calculate_unit_cost(unit_cost: dict[str, float], unit: float
+                        ) -> dict[str, int]:
+    uc: dict[str, float] = {}
+    for k in unit_cost.keys():
+        uc[k] = unit_cost[k] * float(unit)
+    return uc
+
+
+def profit_maximization(
+        production: dict[str, float], consumption: dict[str, float],
+        unit_cost: dict[str, float], distance: dict[tuple[str, str], float],
+        transportation_cost: dict[float, float]) -> pulp.LpVariable:
+    problem: pulp.LpProblem = pulp.LpProblem("Profit ;)", pulp.LpMaximize)
+    shipment: pulp.LpVariable = pulp.LpVariable.dicts(
+            "x", list(distance.keys()),
+            lowBound=0, cat="Continuous")
+
+    tcost_keys: list[float] = list(sorted(list(transportation_cost.keys())))
+    dist_transport_cost: dict[tuple[str, str], float] = {}
+    for k, v in distance.items():
+        if v == 0:
+            dist_transport_cost[k] = 1
+            continue
+        for tk in reversed(tcost_keys):
+            while (v - tk) > 0:
+                v -= tk
+                if k in dist_transport_cost.keys():
+                    dist_transport_cost[k] += tk
+                else:
+                    dist_transport_cost[k] = tk
+
+    problem += pulp.lpSum(
+            (unit_cost[k[1]] * shipment[k]
+             ) - shipment[k] * dist_transport_cost[k] for k in distance.keys())
+
+    # Condition 1
+    for p, _ in PREF_CITY:
+        problem += pulp.lpSum(
+                shipment[(p, p2)] for p2, _ in PREF_CITY) <= production[p]
+    # Condition 2
+    for p, _ in PREF_CITY:
+        problem += pulp.lpSum(
+                shipment[(p2, p)] for p2, _ in PREF_CITY) <= consumption[p]
+
+    status = problem.solve()
+    if status != pulp.LpStatusOptimal:
+        print(f"Optimal value didn't find: {status}")
+    return shipment
+
+
+def profit_maximization_detailed(
+        production: dict[str, float], consumption: dict[str, float],
+        unit_cost: dict[str, float], distance: dict[tuple[str, str], float],
+        transportation_cost: dict[float, dict[float, float]]
+        ) -> pulp.LpVariable:
+    raise NotImplementedError()
 
 
 def main(args: argparse.Namespace):
@@ -200,15 +323,18 @@ def main(args: argparse.Namespace):
         pop = get_population_j(data["population"])
     if args.population_mode == "total":
         pop = get_population(data["population"])
-    con: dict[str, float] = get_consumption(data["consumption"], "トマト")
+    con: dict[str, float] = get_consumption(data["consumption"], args.item)
+    uni: dict[str, float] = get_unit_cost(data["consumption"], args.item)
     pro: dict[str, float] = get_production(data["production"])
     dis: dict[tuple[str, str], float] = get_distance(data["distance"])
     assert len(pop.keys()) == 47
     assert len(con.keys()) == 47
+    assert len(uni.keys()) == 47
     assert len(pro.keys()) == 47
     assert (len(dis.keys()) == 47**2)
     assert pop.keys() == con.keys()
-    assert con.keys() == pro.keys()
+    assert con.keys() == uni.keys()
+    assert uni.keys() == pro.keys()
 
     if args.dataset:
         with open("households.csv", "w", encoding="utf-8") as f:
@@ -227,26 +353,33 @@ def main(args: argparse.Namespace):
                 print(f"{k},{v}", file=f)
 
     con = calculate_consumption(con, pop, args.unit)
+    uni = calculate_unit_cost(uni, args.unit_cost)
     assert pop.keys() == con.keys()
+    assert pop.keys() == uni.keys()
 
-    problem: pulp.LpProblem = pulp.LpProblem(":3", pulp.LpMinimize)
-    shipment: pulp.LpVariable = pulp.LpVariable.dicts(
-            "x", list(dis.keys()), lowBound=0, cat="Continuous")
+    if args.profit:
+        tra: dict[float, float] = get_transportation_cost(
+                pd.read_csv(args.transportation), simple=True)
+        shipment = profit_maximization(pro, con, uni, dis, tra)
+    else:
+        problem: pulp.LpProblem = pulp.LpProblem(":3", pulp.LpMinimize)
+        shipment: pulp.LpVariable = pulp.LpVariable.dicts(
+                "x", list(dis.keys()), lowBound=0, cat="Continuous")
 
-    problem += pulp.lpSum(shipment[k] * dis[k] for k in dis.keys())
+        problem += pulp.lpSum(shipment[k] * dis[k] for k in dis.keys())
 
-    # Condition 1
-    for p, _ in PREF_CITY:
-        problem += pulp.lpSum(
-                shipment[(p, p2)] for p2, _ in PREF_CITY) <= pro[p]
-    # Condition 2
-    for p, _ in PREF_CITY:
-        problem += pulp.lpSum(
-                shipment[(p2, p)] for p2, _ in PREF_CITY) == con[p]
+        # Condition 1
+        for p, _ in PREF_CITY:
+            problem += pulp.lpSum(
+                    shipment[(p, p2)] for p2, _ in PREF_CITY) <= pro[p]
+        # Condition 2
+        for p, _ in PREF_CITY:
+            problem += pulp.lpSum(
+                    shipment[(p2, p)] for p2, _ in PREF_CITY) == con[p]
 
-    status = problem.solve()
-    if status != pulp.LpStatusOptimal:
-        print(f"Optimal value didn't find: {status}")
+        status = problem.solve()
+        if status != pulp.LpStatusOptimal:
+            print(f"Optimal value didn't find: {status}")
 
     shipment_mat: np.ndarray = np.zeros((len(PREF_CITY), len(PREF_CITY)))
     for iidx, (i, _) in enumerate(PREF_CITY):
@@ -277,12 +410,20 @@ if __name__ == "__main__":
     parser.add_argument(
             "--distance", default="prefecture_capital_distances.csv",
             help="Dataset of distance")
+    parser.add_argument("--transportation", default="transportation_cost.csv",
+                        help="Dataset of transportation cost")
     parser.add_argument(
             "--item", help="Item name to search data from consumption")
     parser.add_argument(
             "--unit", default=1000000, type=float,
             help="Unit to calculate consumption (ex: 1000000 for tomato)")
+    parser.add_argument(
+            "--unit-cost", default=10000, type=float,
+            help="Unit to calculate average cost (ex. 10000 for tomato)")
     parser.add_argument("--dataset", action="store_true",
                         help="Produce dataset compatible for lp_full.py")
     parser.add_argument("--shipment", help="File path to save result data")
+    parser.add_argument(
+            "--profit", action="store_true",
+            help="Caclulate profix maximization")
     main(parser.parse_args())
