@@ -358,10 +358,12 @@ def main(args: argparse.Namespace):
     assert pop.keys() == uni.keys()
 
     if args.profit:
+        print("Profit mode")
         tra: dict[float, float] = get_transportation_cost(
                 pd.read_csv(args.transportation), simple=True)
         shipment = profit_maximization(pro, con, uni, dis, tra)
     else:
+        print("Shipment mode")
         problem: pulp.LpProblem = pulp.LpProblem(":3", pulp.LpMinimize)
         shipment: pulp.LpVariable = pulp.LpVariable.dicts(
                 "x", list(dis.keys()), lowBound=0, cat="Continuous")
@@ -403,7 +405,7 @@ if __name__ == "__main__":
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument("--population", help="Dataset of population")
     parser.add_argument(
-            "--population-mode", default="japanese",
+            "--population-mode", default="total",
             choices=["japanese", "total"], help="Population dataset type")
     parser.add_argument("--consumption", help="Dataset of consumption")
     parser.add_argument("--production", help="Dataset of production")
