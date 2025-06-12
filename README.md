@@ -2,7 +2,7 @@
 
 ## 使い方
 
-`bash
+`
 python tomato.py [options]
 `
 
@@ -34,7 +34,7 @@ python tomato.py [options]
 
 ## 使用例 (だいこん)
 
-`bash
+`
 python tomato.py --population 24ssjin.xlsx --consumption a401.xlsx --production f005-05-003.xlsx --shipment daikon.csv --item "だいこん"
 `
 
