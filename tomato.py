@@ -207,36 +207,39 @@ def get_transportation_cost_s(data: pd.DataFrame) -> dict[float, float]:
 
 
 def get_transportation_cost_m(
-        data: pd.DataFrame) -> dict[float, dict[float, float]]:
-    cost: dict[float, dict[float, float]] = {}
+        data: pd.DataFrame) -> dict[tuple[float, float], float]:
+    cost: dict[tuple[float, float], float] = {}
     for i, l in enumerate(data.columns[1:]):
         lf: float = float(l)
-        cost[lf] = {}
-        ccost: dict[float, float] = {}
         for k in range(data.shape[0]):
             dist: float = float(data.iat[k, 0])
             c: float = float(data.iat[k, i + 1])
-            ccost[dist] = c
-        cost[lf] = ccost
+            cost[(lf, dist)] = c
     return cost
 
 
 def get_transportation_cost(
         data: pd.DataFrame, simple=False
-        ) -> dict[float, float] | dict[float, dict[float, float]]:
+        ) -> dict[float, float] | dict[tuple[float, float], float]:
     if len(data.columns) == 2:
         return get_transportation_cost_s(data)
     if len(data.columns) > 2:
-        d: dict[float, dict[float, float]] = get_transportation_cost_m(data)
+        d: dict[tuple[float, float], float] = get_transportation_cost_m(data)
         if not simple:
             return d
 
         d_s: dict[float, float] = {}
-        for k in d.keys():
-            s: float = 0
-            for kk in d[k].keys():
-                s += d[k][kk] / k
-            d_s[k] = s / len(d.keys())
+        t: set = set()
+        for k, v in d.items():
+            t |= set([k[0]])
+            if not k[1] in d_s.keys():
+                d_s[k[1]] = 0
+            d_s[k[1]] += v / k[0]
+        for k in d_s.keys():
+            d_s[k] /= len(t)
+
+        for k, v in d_s.items():
+            print(k, v)
         return d_s
     raise NotImplementedError()
 
