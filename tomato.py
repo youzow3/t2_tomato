@@ -274,7 +274,7 @@ def profit_maximization(
     dist_transport_cost: dict[tuple[str, str], float] = {}
     for k, v in distance.items():
         if v == 0:
-            dist_transport_cost[k] = 1
+            dist_transport_cost[k] = 0
             continue
         for tk in reversed(tcost_keys):
             while (v - tk) > 0:
