@@ -311,6 +311,30 @@ def profit_maximization_detailed(
     raise NotImplementedError()
 
 
+def transportation_minimize(
+        production: dict[str, float], consumption: dict[str, float],
+        distance: dict[tuple[str, str], float]) -> pulp.LpVariable:
+    problem: pulp.LpProblem = pulp.LpProblem(":3", pulp.LpMinimize)
+    shipment: pulp.LpVariable = pulp.LpVariable.dicts(
+            "x", list(distance.keys()), lowBound=0, cat="Continuous")
+
+    problem += pulp.lpSum(shipment[k] * distance[k] for k in distance.keys())
+
+    # Condition 1
+    for p, _ in PREF_CITY:
+        problem += pulp.lpSum(
+                shipment[(p, p2)] for p2, _ in PREF_CITY) <= production[p]
+    # Condition 2
+    for p, _ in PREF_CITY:
+        problem += pulp.lpSum(
+                shipment[(p2, p)] for p2, _ in PREF_CITY) == consumption[p]
+
+    status = problem.solve()
+    if status != pulp.LpStatusOptimal:
+        print(f"Optimal value didn't find: {status}")
+    return shipment
+
+
 def main(args: argparse.Namespace):
     data: dict[str, pd.DataFrame] = {}
 
@@ -367,24 +391,7 @@ def main(args: argparse.Namespace):
         shipment = profit_maximization(pro, con, uni, dis, tra)
     else:
         print("Shipment mode")
-        problem: pulp.LpProblem = pulp.LpProblem(":3", pulp.LpMinimize)
-        shipment: pulp.LpVariable = pulp.LpVariable.dicts(
-                "x", list(dis.keys()), lowBound=0, cat="Continuous")
-
-        problem += pulp.lpSum(shipment[k] * dis[k] for k in dis.keys())
-
-        # Condition 1
-        for p, _ in PREF_CITY:
-            problem += pulp.lpSum(
-                    shipment[(p, p2)] for p2, _ in PREF_CITY) <= pro[p]
-        # Condition 2
-        for p, _ in PREF_CITY:
-            problem += pulp.lpSum(
-                    shipment[(p2, p)] for p2, _ in PREF_CITY) == con[p]
-
-        status = problem.solve()
-        if status != pulp.LpStatusOptimal:
-            print(f"Optimal value didn't find: {status}")
+        shipment = transportation_minimize(pro, con, dis)
 
     shipment_mat: np.ndarray = np.zeros((len(PREF_CITY), len(PREF_CITY)))
     for iidx, (i, _) in enumerate(PREF_CITY):
