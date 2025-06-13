@@ -5,6 +5,7 @@ from icecream import ic
 import pulp
 
 import argparse
+import os
 
 
 PREF_CITY: list[tuple[str, str]] = [
@@ -345,9 +346,11 @@ def transportation_minimize(
     return shipment
 
 
-def main(args: argparse.Namespace):
+def main(args: argparse.Namespace) -> int:
     data: dict[str, pd.DataFrame] = {}
 
+    if args.name is None:
+        args.name = os.path.basename(args.production)
     if args.debug:
         ic.enable()
         ic("Debug mode enabled")
@@ -356,7 +359,7 @@ def main(args: argparse.Namespace):
         data = load_data(args)
     except Exception as e:
         print(e)
-        exit(1)
+        return 1
 
     # pop: dict[str, int] = get_population(data["population"])
     pop: dict[str, int] = {}
@@ -436,6 +439,8 @@ def main(args: argparse.Namespace):
     if args.shipment:
         shipment_data.to_csv(args.shipment, encoding="utf-8")
 
+    return 0
+
 
 if __name__ == "__main__":
     ic.disable()
@@ -466,4 +471,7 @@ if __name__ == "__main__":
             "--profit", action="store_true",
             help="Caclulate profix maximization")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
-    main(parser.parse_args())
+    if main(parser.parse_args()) != 0:
+        parser.print_help()
+        exit(1)
+    exit(0)
