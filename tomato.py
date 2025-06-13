@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from icecream import ic
 
 import pulp
 
@@ -64,6 +65,8 @@ def load_data(args: argparse.Namespace = None) -> dict[str, pd.DataFrame]:
         assert args.production is not None
         assert args.distance is not None
 
+        ic("Reading data from files")
+
         return {
                 "population": pd.read_excel(args.population),
                 "consumption": pd.read_excel(args.consumption, 1),
@@ -81,6 +84,7 @@ def load_data(args: argparse.Namespace = None) -> dict[str, pd.DataFrame]:
 
 def get_population(data: pd.DataFrame) -> dict[str, int]:
     # Data starts from 4.
+    ic("Getting population data")
     population: dict[str, int] = {"東京都": 0}  # Need initialization
     for i in range(4, data.shape[0]):
         pref: str = data.iat[i, 1]
@@ -99,6 +103,7 @@ def get_population(data: pd.DataFrame) -> dict[str, int]:
 
 
 def get_population_j(data: pd.DataFrame) -> dict[str, int]:
+    ic("Getting japanese population data")
     population: dict[str, int] = {}
     for i in range(6, data.shape[0]):
         pref: str = data.iat[i, 1]
@@ -112,6 +117,7 @@ def get_population_j(data: pd.DataFrame) -> dict[str, int]:
 
 
 def get_consumption(data: pd.DataFrame, name: str) -> dict[str, float]:
+    ic("Getting consumption data")
     consumption: dict[str, int] = {}
     name_idx: int = None
     for i in range(data.shape[0]):
@@ -138,6 +144,7 @@ def get_consumption(data: pd.DataFrame, name: str) -> dict[str, float]:
 
 
 def get_production(data: pd.DataFrame) -> dict[str, float]:
+    ic("Getting production data")
     production: dict[str, int] = {}
     # Data starts from 16
     for pref, _ in PREF_CITY:
@@ -155,6 +162,7 @@ def get_production(data: pd.DataFrame) -> dict[str, float]:
 
 
 def get_unit_cost(data: pd.DataFrame, name: str) -> dict[str, float]:
+    ic("Getting unit cost data")
     unit_cost: dict[str, int] = {}
     name_idx: int = None
     for i in range(data.shape[0]):
@@ -181,6 +189,7 @@ def get_unit_cost(data: pd.DataFrame, name: str) -> dict[str, float]:
 
 
 def get_distance(data: pd.DataFrame) -> dict[tuple[str, str], float]:
+    ic("Getting distance data")
     distance: dict[tuple[str, str], float] = {}
 
     for pref0, city0 in PREF_CITY:
@@ -221,6 +230,7 @@ def get_transportation_cost_m(
 def get_transportation_cost(
         data: pd.DataFrame, simple=False
         ) -> dict[float, float] | dict[tuple[float, float], float]:
+    ic("Getting transportation cost data")
     if len(data.columns) == 2:
         return get_transportation_cost_s(data)
     if len(data.columns) > 2:
@@ -338,6 +348,10 @@ def transportation_minimize(
 def main(args: argparse.Namespace):
     data: dict[str, pd.DataFrame] = {}
 
+    if args.debug:
+        ic.enable()
+        ic("Debug mode enabled")
+
     try:
         data = load_data(args)
     except Exception as e:
@@ -351,9 +365,17 @@ def main(args: argparse.Namespace):
     if args.population_mode == "total":
         pop = get_population(data["population"])
     con: dict[str, float] = get_consumption(data["consumption"], args.item)
+    ic("consumption")
+    ic(con)
     uni: dict[str, float] = get_unit_cost(data["consumption"], args.item)
+    ic("unit cost")
+    ic(uni)
     pro: dict[str, float] = get_production(data["production"])
+    ic("production")
+    ic(pro)
     dis: dict[tuple[str, str], float] = get_distance(data["distance"])
+    ic("distance")
+    ic(dis)
     assert len(pop.keys()) == 47
     assert len(con.keys()) == 47
     assert len(uni.keys()) == 47
@@ -383,6 +405,10 @@ def main(args: argparse.Namespace):
     uni = calculate_unit_cost(uni, args.unit_cost)
     assert pop.keys() == con.keys()
     assert pop.keys() == uni.keys()
+    ic("calculated consumption")
+    ic(con)
+    ic("calculated unit cost")
+    ic(uni)
 
     if args.profit:
         print("Profit mode")
@@ -412,6 +438,7 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
+    ic.disable()
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument("--population", help="Dataset of population")
     parser.add_argument(
@@ -438,4 +465,5 @@ if __name__ == "__main__":
     parser.add_argument(
             "--profit", action="store_true",
             help="Caclulate profix maximization")
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
     main(parser.parse_args())
