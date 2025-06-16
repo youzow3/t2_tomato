@@ -405,7 +405,7 @@ def profit_maximization_detailed(
     if prefix is not None:
         for ti, t in enumerate(shipment_type):
             make_shipment_df(shipment_mats[ti]).to_csv(
-                    f"{prefix}-profit-detailed-{t}.csv", encoding="utf-8")
+                    f"{prefix}-profit-detailed-{t}.csv", encoding="utf-8-sig")
 
 
 def transportation_minimization(
@@ -484,17 +484,17 @@ def main(args: argparse.Namespace) -> int:
     assert uni.keys() == pro.keys()
 
     if args.dataset:
-        with open("households.csv", "w", encoding="utf-8") as f:
+        with open("households.csv", "w", encoding="utf-8-sig") as f:
             print("都市名,世帯数", file=f)
             for k, v in pop.items():
                 print(f"{k},{v}", file=f)
 
-        with open("consumption.csv", "w", encoding="utf-8") as f:
+        with open("consumption.csv", "w", encoding="utf-8-sig") as f:
             print("県名,購入数量", file=f)
             for k, v in con.items():
                 print(f"{k},{v}", file=f)
 
-        with open("production.csv", "w", encoding="utf-8") as f:
+        with open("production.csv", "w", encoding="utf-8-sig") as f:
             print("県名,生産量", file=f)
             for k, v in pro.items():
                 print(f"{k},{v}", file=f)
