@@ -442,7 +442,7 @@ def transportation_minimization(
 def main(args: argparse.Namespace) -> int:
     data: dict[str, pd.DataFrame] = {}
 
-    if args.item is None:
+    if (args.item is None) and (args.production is not None):
         args.item = os.path.basename(args.production)
     if args.debug:
         ic.enable()
