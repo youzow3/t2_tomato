@@ -126,6 +126,7 @@ def get_consumption(data: pd.DataFrame, name: str) -> dict[str, float]:
             name_idx = i
     if name_idx is None:
         print("Error at get consumption")
+        print("Did you specified the item name?")
         exit(1)
 
     for pref, city in PREF_CITY:
