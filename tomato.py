@@ -444,7 +444,7 @@ def main(args: argparse.Namespace) -> int:
     data: dict[str, pd.DataFrame] = {}
 
     if (args.item is None) and (args.production is not None):
-        args.item = os.path.basename(args.production)
+        args.item = os.path.basename(args.production).removesuffix(".xlsx")
     if args.debug:
         ic.enable()
         ic("Debug mode enabled")
