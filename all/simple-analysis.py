@@ -42,10 +42,15 @@ def distance_amount(x: np.ndarray) -> float:
     return float(sp) / float(full)
 
 
+def consumption(x: np.ndarray) -> float:
+    return float(np.sum(x))
+
+
 def main():
     s: list[tuple[str, float]] = []
     d: list[tuple[str, float]] = []
     da: list[tuple[str, float]] = []
+    c: list[tuple[str, float]] = []
 
     for f in sys.argv[1:]:
         print(f"Reading: {f}")
@@ -55,6 +60,7 @@ def main():
         s.append((f, sparse(data_np)))
         d.append((f, distance(data_np)))
         da.append((f, distance_amount(data_np)))
+        c.append((f, consumption(data_np)))
 
     print("Sparsity")
     for ss in sorted(s, key=lambda x: x[1]):
@@ -67,6 +73,10 @@ def main():
     print("Distance & Amount")
     for das in sorted(da, key=lambda x: x[1]):
         print(f"{das[0]}, {das[1]:>.2f}")
+    print()
+    print("Consumption")
+    for cs in sorted(c, key=lambda x: x[1]):
+        print(f"{cs[0]}, {cs[1]:>.2f}")
 
 
 if __name__ == "__main__":
